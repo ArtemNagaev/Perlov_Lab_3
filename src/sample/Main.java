@@ -19,11 +19,16 @@ import org.apache.commons.compress.archivers.zip.ZipFile;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.Format;
 import java.util.ArrayList;
 
 
 
 public class Main extends Application {
+
+    public static ArrayList<Double> forecast = new ArrayList<Double>();
+    public static ArrayList<Double> data = new ArrayList<Double>();
+    public static ArrayList<Double> Trend = new ArrayList<Double>();
 
     static  public Double sum(ArrayList<Double> inputList){
         double sum = 0.0;
@@ -61,7 +66,7 @@ public class Main extends Application {
     public void start(Stage primaryStage) throws Exception{
         Parent root = FXMLLoader.load(getClass().getResource("sample.fxml"));
         primaryStage.setTitle("Hello World");
-        primaryStage.setScene(new Scene(root, 300, 275));
+        primaryStage.setScene(new Scene(root));
         primaryStage.show();
     }
 
@@ -77,7 +82,7 @@ public class Main extends Application {
         }
         XSSFSheet sheet = workbook.getSheet("Лист1");
 
-        ArrayList<Double> data = new ArrayList<Double>();
+
 
         for (Row row: sheet) {
             Cell cell = row.getCell(0);
@@ -149,14 +154,59 @@ public class Main extends Application {
             seasonCompCorr.add(seasonComp.get(i)*coef);
         }
 
+        //Создаём массив X
+        ArrayList<Double> X = new ArrayList<Double>();
+        for (int i = 0; i<data.size(); i++){
+            X.add(Double.valueOf(i+1));
+        }
+
+        //находим значение без сезонной компоненты
+        ArrayList<Double> dataWithoutSeasonComp = new ArrayList<Double>();
+        for (int i = 0; i<data.size(); i++){
+            dataWithoutSeasonComp.add(data.get(i)/seasonCompCorr.get(i%12));
+        }
+
+        //создаём массив перемноженных Xi Yi
+        ArrayList<Double> XiYi = new ArrayList<Double>();
+        for (int i = 0; i<data.size(); i++){
+            XiYi.add(X.get(i)*dataWithoutSeasonComp.get(i));
+        }
+
+        //создаём массив квадратов X
+        ArrayList<Double> XiSqr = new ArrayList<Double>();
+        for (int i = 0; i<data.size(); i++){
+            XiSqr.add(X.get(i)*X.get(i));
+        }
 
         //считаем тренд
         Double n = Double.valueOf(data.size());
-        Double SumXi = sum(data);
 
-        //находим значение без сезонной компоненты
+        Double SumXi = sum(X);
 
-        //Double SumYi = sum()
+        Double SumYi = sum(dataWithoutSeasonComp);
+
+        Double SumXiSumYi = SumXi * SumYi;
+
+        Double SumXiYi = sum(XiYi);
+
+        Double SumXiSqr = sum(XiSqr);
+
+        //находим a и b
+        Double a = (SumXiYi*n-SumXiSumYi)/(SumXiSqr*n-SumXi*SumXi);
+        Double b = (SumYi-a*SumXi)/n;
+
+        //Строим линию тренда
+        for (int i = 0; i<data.size()+12;i++){
+            Trend.add((i+1)*a+b);
+        }
+
+        //Возвращаем сезонную компоненту
+
+
+        for (int i = 0; i<Trend.size(); i++){
+            forecast.add(Trend.get(i)*seasonCompCorr.get(i%12));
+        }
+
 
         for (Double number:seasonComp
              ) {
